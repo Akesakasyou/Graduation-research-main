@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "90378089259",
+    "project_id": "anime-ranking-ra",
+    "storage_bucket": "anime-ranking-ra.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:90378089259:android:477da89dc13c190fb9cb6e",
+        "android_client_info": {
+          "package_name": "com.example.flutter_application_1"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyArtxKwVlI1QJlkwFE5ceXWGzhl6sCkFPM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:90378089259:android:e5f644226e442b7fb9cb6e",
+        "android_client_info": {
+          "package_name": "com.example.anime_ranking_ra"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyArtxKwVlI1QJlkwFE5ceXWGzhl6sCkFPM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,26 @@
+name: anime_ranking_ra
+description: "A new Flutter project."
+publish_to: "none"
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.5.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  firebase_core: ^4.2.1
+  firebase_auth: ^6.1.2
+  cloud_firestore: ^6.1.0
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  firebase_storage: 13.0.4
+  image_picker: ^1.0.7
+  image: ^4.7.2
+
+flutter:
+  uses-material-design: true

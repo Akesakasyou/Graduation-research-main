@@ -1,0 +1,359 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =========================
+    // 共通関数
+    // =========================
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid))
+             .data.isAdmin == true;
+    }
+
+    // =========================
+    // users コレクション
+    // =========================
+    match /users/{userId} {
+      // 自分のデータのみ閲覧・更新可
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    // =========================
+    // アニメ作品（animes）
+    // =========================
+    match /animes/{animeId} {
+      // 誰でも閲覧OK
+      allow read: if true;
+
+      // 追加・編集・削除は管理者のみ
+      allow create, update, delete: if isAdmin();
+    }
+
+    // =========================
+    // 総合ランキング用レビュー
+    // reviews/{animeId}/users/{uid}
+    // =========================
+    match /reviews/{animeId}/users/{uid} {
+      // 読み取り：全員（ランキング表示用）
+      allow read: if true;
+
+      // 書き込み：本人のみ
+      allow create, update, delete: if isSignedIn()
+        && request.auth.uid == uid;
+    }
+   //マイランキング 
+   match /users/{uid}/Creatmypage/{animeId} {
+   allow read: if true;
+   allow create, update, delete: if request.auth != null
+    && request.auth.uid == uid;
+   }
+
+    // 全作品情報（animes）は読み取り可能にする場合
+    match /animes/{animeId} {
+      allow read: if true;  // 全員が閲覧可能
+      allow write: if false; // 書き込みは不可
+    }
+
+    
+    
+     // =========================
+    // users コレクション
+    // =========================
+    match /users/{userId} {
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+
+      // Creatmypage ドキュメント
+      match /Creatmypage/{animeId} {
+        allow read, write: if isSignedIn() && request.auth.uid == userId;
+
+        // votes コレクション
+        match /votes/{voteId} {
+          allow read, write: if isSignedIn() && request.auth.uid == userId;
+        }
+      }
+    }
+      
+
+    
+    // =========================
+    // users コレクション
+    // =========================
+    match /users/{uid} {
+      // ユーザー本人のみ読み書き可能
+      allow read, write: if isSignedIn() && request.auth.uid == uid;
+
+      // =========================
+      // Creatmypage コレクション
+      // =========================
+      match /Creatmypage/{animeId} {
+        allow read, write: if isSignedIn() && request.auth.uid == uid;
+
+        // =========================
+        // votes コレクション
+        // =========================
+        match /votes/{voteId} {
+          // 自分の vote のみ書き込み可能、読み取りは本人のみ
+          allow read, write: if isSignedIn() && request.auth.uid == uid;
+          
+          // 必要であれば書き込み時に score が数値かをチェック
+          allow create: if request.resource.data.keys().hasAll(['score', 'userId', 'createdAt']) &&
+                        request.resource.data.score is number &&
+                        request.resource.data.userId == request.auth.uid &&
+                        request.resource.data.createdAt is timestamp;
+        }
+      }
+    }
+
+    // =========================
+    // animes コレクション（参照用、読み取りのみ）
+    // =========================
+    match /animes/{animeId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+      
+
+    // =========================
+    // animes コレクション（全員読み取り可能、書き込みは管理者のみ）
+    // =========================
+    match /animes/{animeId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.admin == true;
+    }  
+    
+     // users コレクション
+    match /users/{userId} {
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+
+      // Creatmypage コレクション
+      match /Creatmypage/{animeId} {
+        allow read, write: if isSignedIn() && request.auth.uid == userId;
+
+        // votes コレクション
+        match /votes/{voteId} {
+          allow read, write: if isSignedIn() && request.auth.uid == userId;
+
+          // 作成時のバリデーション
+          allow create: if request.resource.data.keys().hasAll(['score', 'userId', 'createdAt']) &&
+                        request.resource.data.score is number &&
+                        request.resource.data.userId == request.auth.uid &&
+                        request.resource.data.createdAt is timestamp;
+        }
+      }
+    }
+    
+    //user_anime
+    match /users/{userId}/Creatmypage/{docId} {
+    allow read: if true; // 誰でも閲覧可能
+    }
+
+
+  }
+ 
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =========================
+    // 共通関数
+    // =========================
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid))
+             .data.isAdmin == true;
+    }
+
+    // =========================
+    // users コレクション
+    // =========================
+    match /users/{userId} {
+      // 自分のデータのみ閲覧・更新可
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    // =========================
+    // アニメ作品（animes）
+    // =========================
+    match /animes/{animeId} {
+      // 誰でも閲覧OK
+      allow read: if true;
+
+      // 追加・編集・削除は管理者のみ
+      allow create, update, delete: if isAdmin();
+    }
+
+    // =========================
+    // 総合ランキング用レビュー
+    // reviews/{animeId}/users/{uid}
+    // =========================
+    match /reviews/{animeId}/users/{uid} {
+      // 読み取り：全員（ランキング表示用）
+      allow read: if true;
+
+      // 書き込み：本人のみ
+      allow create, update, delete: if isSignedIn()
+        && request.auth.uid == uid;
+    }
+   //マイランキング 
+   match /users/{uid}/Creatmypage/{animeId} {
+   allow read: if true;
+   allow create, update, delete: if request.auth != null
+    && request.auth.uid == uid;
+   }
+
+    // 全作品情報（animes）は読み取り可能にする場合
+    match /animes/{animeId} {
+      allow read: if true;  // 全員が閲覧可能
+      allow write: if false; // 書き込みは不可
+    }
+      
+    // =========================
+    // users コレクション
+    // =========================
+    match /users/{uid} {
+      // ユーザー本人のみ読み書き可能
+      allow read, write: if isSignedIn() && request.auth.uid == uid;
+
+      // =========================
+      // Creatmypage コレクション
+      // =========================
+      match /Creatmypage/{animeId} {
+        allow read, write: if isSignedIn() && request.auth.uid == uid;
+
+        // =========================
+        // votes コレクション
+        // =========================
+        match /votes/{voteId} {
+          // 自分の vote のみ書き込み可能、読み取りは本人のみ
+          allow read, write: if isSignedIn() && request.auth.uid == uid;
+          
+          // 必要であれば書き込み時に score が数値かをチェック
+          allow create: if request.resource.data.keys().hasAll(['score', 'userId', 'createdAt']) &&
+                        request.resource.data.score is number &&
+                        request.resource.data.userId == request.auth.uid &&
+                        request.resource.data.createdAt is timestamp;
+        }
+        //user_anime
+        match /users/{userId}/Creatmypage/{docId} {
+        allow read: if true; // 誰でも閲覧可能
+        }
+      }
+    }
+    
+    
+
+
+  }
+ 
+}
+
+
+
+
+
+
+
+
+
+
+
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =========================
+    // 共通関数
+    // =========================
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // =========================
+    // users コレクション
+    // =========================
+    match /users/{userId} {
+
+      // ユーザー本人のみ読み書き可能
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      // =========================
+      // Creatmypage サブコレクション
+      // =========================
+      match /Creatmypage/{animeId} {
+
+        // 本人のみ読み書き可能
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+
+        // =========================
+        // votes サブコレクション
+        // =========================
+        match /votes/{voteId} {
+
+          // 自分の vote のみ読み書き可能
+          allow read, write: if request.auth != null && request.auth.uid == userId;
+
+          // 作成時の制約（score と createdAt の型チェック）
+          allow create: if request.resource.data.keys().hasAll(['score', 'userId', 'createdAt']) &&
+                        request.resource.data.score is number &&
+                        request.resource.data.userId == request.auth.uid &&
+                        request.resource.data.createdAt is timestamp;
+        }
+      }
+    }
+
+    // =========================
+    // animes コレクション
+    // =========================
+    match /animes/{animeId} {
+      // 誰でも読み取り可能
+      allow read: if true;
+
+      // 作成・編集・削除は管理者のみ
+      allow create, update, delete: if isAdmin();
+    }
+
+    // =========================
+    // 総合ランキング用 reviews
+    // reviews/{animeId}/users/{uid}
+    // =========================
+    match /reviews/{animeId}/users/{uid} {
+      // 読み取りは全員可能
+      allow read: if true;
+
+      // 書き込みは本人のみ
+      allow create, update, delete: if request.auth != null && request.auth.uid == uid;
+    }
+
+  }
+}
