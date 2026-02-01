@@ -6,12 +6,17 @@ import '../Top/other_user_ranking_detail.dart';
 class OtherUsersMyRanking extends StatelessWidget {
   const OtherUsersMyRanking({super.key});
 
-  Future<List<Map<String, dynamic>>> _getOtherUsersRanking() async {
+  /// =========================
+  /// 他ユーザーのランキングを
+  /// ユーザー単位でまとめて取得
+  /// userId -> ランキング一覧
+  /// =========================
+  Future<Map<String, List<Map<String, dynamic>>>> _getGroupedRankings() async {
     final currentUser = FirebaseAuth.instance.currentUser;
     final usersSnapshot =
         await FirebaseFirestore.instance.collection('users').get();
 
-    List<Map<String, dynamic>> results = [];
+    Map<String, List<Map<String, dynamic>>> results = {};
 
     for (final userDoc in usersSnapshot.docs) {
       if (userDoc.id == currentUser?.uid) continue;
@@ -24,73 +29,34 @@ class OtherUsersMyRanking extends StatelessWidget {
           .collection('Creatmypage')
           .get();
 
-      for (final doc in rankingSnapshot.docs) {
+      if (rankingSnapshot.docs.isEmpty) continue;
+
+      results[userDoc.id] = rankingSnapshot.docs.map((doc) {
         final data = doc.data();
-        data['userId'] = userDoc.id;
-        data['userName'] = userName; // ★追加
-        results.add(data);
-      }
+        data['userName'] = userName;
+        return data;
+      }).toList();
     }
 
     return results;
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        const Text(
-          "～ 他ユーザーのマイランキング ～",
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 10),
-        SizedBox(
-          height: 250,
-          child: FutureBuilder<List<Map<String, dynamic>>>(
-            future: _getOtherUsersRanking(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
+  /// =========================
+  /// 1ユーザー = 1カード
+  /// =========================
+  Widget _buildUserCard(
+    BuildContext context,
+    String userId,
+    List<Map<String, dynamic>> rankings,
+  ) {
+    final first = rankings.first;
 
-              if (snapshot.hasError) {
-                return Center(
-                  child: Text(
-                    'エラー: ${snapshot.error}',
-                    style: const TextStyle(color: Colors.red),
-                  ),
-                );
-              }
-
-              if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                return const Center(child: Text("表示するランキングがありません"));
-              }
-
-              final items = snapshot.data!;
-
-              return ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: items.length,
-                itemBuilder: (context, index) {
-                  return _buildCard(context, items[index]);
-                },
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCard(BuildContext context, Map<String, dynamic> item) {
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => OtherUserRankingDetailPage(
-              userId: item['userId'],
-            ),
+            builder: (_) => OtherUserRankingDetailPage(userId: userId),
           ),
         );
       },
@@ -105,27 +71,83 @@ class OtherUsersMyRanking extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            item["images"] != null
+            Text(
+              first['userName'] ?? '',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            /// 代表画像
+            first['images'] != null
                 ? Image.network(
-                    item["images"],
-                    height: 150,
+                    first['images'],
+                    height: 120,
                     width: double.infinity,
                     fit: BoxFit.cover,
                   )
                 : Container(
-                    height: 150,
+                    height: 120,
                     color: Colors.grey[300],
                     child: const Center(child: Text("No Image")),
                   ),
+
             const SizedBox(height: 8),
-            Text(
-              item["title"] ?? "",
-              style: const TextStyle(fontWeight: FontWeight.bold),
+            Text('ランキング数：${rankings.length}'),
+            const Spacer(),
+            const Text(
+              'タップして詳細を見る',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
             ),
-            Text("作品数：${item["sakuhin"] ?? ""}"),
           ],
         ),
       ),
+    );
+  }
+
+  /// =========================
+  /// UI
+  /// =========================
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        const Text(
+          "～ 他ユーザーのマイランキング ～",
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 260,
+          child: FutureBuilder<Map<String, List<Map<String, dynamic>>>>(
+            future: _getGroupedRankings(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                return const Center(child: Text("表示するランキングがありません"));
+              }
+
+              final userIds = snapshot.data!.keys.toList();
+
+              return ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: userIds.length,
+                itemBuilder: (context, index) {
+                  final userId = userIds[index];
+                  final rankings = snapshot.data![userId]!;
+
+                  return _buildUserCard(context, userId, rankings);
+                },
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }
