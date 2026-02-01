@@ -64,3 +64,4 @@ class OtherUserRankingDetailPage extends StatelessWidget {
     );
   }
 }
+//
