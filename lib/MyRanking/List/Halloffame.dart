@@ -135,7 +135,9 @@ class _HalloffameState extends State<Halloffame> {
                       Text(
                         data['title'] ?? '',
                         style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold),
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       const SizedBox(height: 6),
                       const Text('制作年',
@@ -148,10 +150,15 @@ class _HalloffameState extends State<Halloffame> {
                         spacing: 4,
                         children: seasonsList.map((s) {
                           return Chip(
-                            label: Text(seasons[s] ?? s,
-                                style: TextStyle(color: seasonColors[s])),
+                            label: Text(
+                              seasons[s] ?? s,
+                              style: TextStyle(color: seasonColors[s]),
+                            ),
                             backgroundColor: Colors.white,
-                            side: BorderSide(color: seasonColors[s]!, width: 1),
+                            side: BorderSide(
+                              color: seasonColors[s]!,
+                              width: 1,
+                            ),
                           );
                         }).toList(),
                       ),
@@ -163,10 +170,15 @@ class _HalloffameState extends State<Halloffame> {
                         runSpacing: 4,
                         children: genresList.map((g) {
                           return Chip(
-                            label: Text(g,
-                                style: TextStyle(color: genreColors[g])),
+                            label: Text(
+                              g,
+                              style: TextStyle(color: genreColors[g]),
+                            ),
                             backgroundColor: Colors.white,
-                            side: BorderSide(color: genreColors[g]!, width: 1),
+                            side: BorderSide(
+                              color: genreColors[g]!,
+                              width: 1,
+                            ),
                           );
                         }).toList(),
                       ),

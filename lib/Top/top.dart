@@ -5,7 +5,6 @@ import '/Header/header.dart';
 import '/Footer/footer.dart';
 import 'user_mylist.dart';
 import '/Top/user_halloffame.dart';
-import '/Top/infinitescroll.dart';
 import '/Top/other_users_my_ranking.dart';
 
 class MainPageWidget extends StatefulWidget {
@@ -44,7 +43,6 @@ class _MainPageWidgetState extends State<MainPageWidget> {
             const OtherUsersMyRanking(),
 
             const SizedBox(height: 20),
-
             const SizedBox(height: 30),
             const Footer(),
           ],
@@ -53,4 +51,3 @@ class _MainPageWidgetState extends State<MainPageWidget> {
     );
   }
 }
-//

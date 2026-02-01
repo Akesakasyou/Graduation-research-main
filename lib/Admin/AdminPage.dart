@@ -100,18 +100,15 @@ class _AdminPageState extends State<AdminPage> {
         .collection('animes')
         .orderBy('createdAt', descending: true);
 
-    // 年フィルター
     if (selectedYearFilter != null) {
       animesQuery = animesQuery.where('year', isEqualTo: selectedYearFilter);
     }
 
-    // 季節フィルター（配列対応）
     if (selectedSeasonFilter != null && selectedSeasonFilter!.isNotEmpty) {
       animesQuery =
           animesQuery.where('season', arrayContains: selectedSeasonFilter);
     }
 
-    // ジャンルフィルター（OR条件）
     if (selectedGenresFilter.isNotEmpty) {
       animesQuery =
           animesQuery.where('genre', arrayContainsAny: selectedGenresFilter);
@@ -124,9 +121,8 @@ class _AdminPageState extends State<AdminPage> {
       ),
       body: Column(
         children: [
-          // 検索バー + 追加ボタン
           Padding(
-            padding: const EdgeInsets.all(8.0),
+            padding: const EdgeInsets.all(8),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -153,115 +149,17 @@ class _AdminPageState extends State<AdminPage> {
               ],
             ),
           ),
-
-          // フィルター
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    decoration: const InputDecoration(labelText: 'ジャンル'),
-                    value: selectedGenresFilter.isNotEmpty
-                        ? selectedGenresFilter.first
-                        : null,
-                    items: [null, ...genres].map((g) {
-                      return DropdownMenuItem(
-                        value: g,
-                        child: Text(
-                          g ?? '全て',
-                          style: g != null
-                              ? TextStyle(color: genreColors[g])
-                              : null,
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      setState(() {
-                        selectedGenresFilter = val != null ? [val] : [];
-                      });
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: DropdownButtonFormField<int>(
-                    decoration: const InputDecoration(labelText: '制作年'),
-                    value: selectedYearFilter,
-                    items: [null, ...years].map((y) {
-                      return DropdownMenuItem(
-                        value: y,
-                        child: Text(y?.toString() ?? '全て'),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      setState(() {
-                        selectedYearFilter = val;
-                      });
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    decoration: const InputDecoration(labelText: '季節'),
-                    value: selectedSeasonFilter,
-                    items: [null, ...seasons.keys].map((seasonKey) {
-                      return DropdownMenuItem(
-                        value: seasonKey,
-                        child: Text(
-                          seasonKey != null ? seasons[seasonKey]! : '全て',
-                          style: seasonKey != null
-                              ? TextStyle(color: seasonColors[seasonKey])
-                              : null,
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      setState(() {
-                        selectedSeasonFilter = val;
-                      });
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: () {
-                    setState(() {
-                      selectedGenresFilter.clear();
-                      selectedSeasonFilter = null;
-                      selectedYearFilter = null;
-                    });
-                  },
-                  child: const Text('リセット'),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 8),
-
-          // 作品表示
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: animesQuery.snapshots(),
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
+                if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(child: Text('作品がまだありません'));
-                }
 
-                // タイトル検索 + ANDジャンル
                 final docs = snapshot.data!.docs.where((doc) {
                   final title = (doc['title'] ?? '').toString().toLowerCase();
-                  final genresList = doc['genre'] != null
-                      ? List<String>.from(doc['genre'])
-                      : <String>[];
-                  final matchGenres =
-                      selectedGenresFilter.every((g) => genresList.contains(g));
-                  return title.contains(searchQuery) && matchGenres;
+                  return title.contains(searchQuery);
                 }).toList();
 
                 if (docs.isEmpty) {
@@ -281,145 +179,37 @@ class _AdminPageState extends State<AdminPage> {
                     final anime = docs[index];
                     final data = anime.data() as Map<String, dynamic>;
 
-                    List<String> animeSeasons = [];
-                    if (data['season'] != null) {
-                      if (data['season'] is List) {
-                        animeSeasons = List<String>.from(data['season']);
-                      } else {
-                        animeSeasons = [data['season'].toString()];
-                      }
-                    }
-
-                    List<String> animeGenres = [];
-                    if (data['genre'] != null) {
-                      if (data['genre'] is List) {
-                        animeGenres = List<String>.from(data['genre']);
-                      } else {
-                        animeGenres = [data['genre'].toString()];
-                      }
-                    }
-
                     return Card(
-                      margin: const EdgeInsets.all(8),
-                      child: Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            (data['imageUrl'] ?? '').toString().isNotEmpty
-                                ? Image.network(
-                                    data['imageUrl'],
-                                    width: double.infinity,
-                                    height: 150,
-                                    fit: BoxFit.cover,
-                                    loadingBuilder: (context, child, progress) {
-                                      if (progress == null) return child;
-                                      return Container(
-                                        width: double.infinity,
-                                        height: 150,
-                                        color: Colors.grey[300],
-                                        child: const Center(
-                                            child: CircularProgressIndicator()),
-                                      );
-                                    },
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Container(
-                                        width: double.infinity,
-                                        height: 150,
-                                        color: Colors.grey[300],
-                                        child: const Icon(Icons.broken_image,
-                                            size: 50),
-                                      );
-                                    },
-                                  )
-                                : Container(
-                                    width: double.infinity,
-                                    height: 150,
-                                    color: Colors.grey[300],
-                                    child: const Icon(Icons.image, size: 50),
-                                  ),
-                            const SizedBox(height: 8),
-                            Text(
-                              data['title'] ?? '',
-                              style: const TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 8),
-                            const Text('制作年',
-                                style: TextStyle(fontWeight: FontWeight.bold)),
-                            Text('${data['year'] ?? '-'}'),
-                            const SizedBox(height: 4),
-                            if (animeSeasons.isNotEmpty) ...[
-                              const Text('季節',
-                                  style:
-                                      TextStyle(fontWeight: FontWeight.bold)),
-                              Wrap(
-                                spacing: 4,
-                                children: animeSeasons.map((s) {
-                                  return Chip(
-                                    label: Text(seasons[s] ?? s,
-                                        style:
-                                            TextStyle(color: seasonColors[s])),
-                                    backgroundColor: Colors.white,
-                                    side: BorderSide(
-                                        color: seasonColors[s]!, width: 1),
-                                  );
-                                }).toList(),
+                      child: Column(
+                        children: [
+                          Text(
+                            data['title'] ?? '',
+                            style: const TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                          const Spacer(),
+                          Row(
+                            children: [
+                              IconButton(
+                                icon:
+                                    const Icon(Icons.edit, color: Colors.blue),
+                                onPressed: () =>
+                                    _showEditAnimeDialog(context, anime),
                               ),
-                              const SizedBox(height: 4),
-                            ],
-                            if (animeGenres.isNotEmpty) ...[
-                              const Text('ジャンル',
-                                  style:
-                                      TextStyle(fontWeight: FontWeight.bold)),
-                              Wrap(
-                                spacing: 4,
-                                runSpacing: 4,
-                                children: animeGenres.map((g) {
-                                  return Chip(
-                                    label: Text(g,
-                                        style:
-                                            TextStyle(color: genreColors[g])),
-                                    backgroundColor: Colors.white,
-                                    side: BorderSide(
-                                        color: genreColors[g]!, width: 1),
-                                  );
-                                }).toList(),
+                              const Spacer(),
+                              IconButton(
+                                icon:
+                                    const Icon(Icons.delete, color: Colors.red),
+                                onPressed: () async {
+                                  await FirebaseFirestore.instance
+                                      .collection('animes')
+                                      .doc(anime.id)
+                                      .delete();
+                                },
                               ),
-                              const SizedBox(height: 4),
                             ],
-                            if ((data['synopsis'] ?? '')
-                                .toString()
-                                .isNotEmpty) ...[
-                              const Text('あらすじ',
-                                  style:
-                                      TextStyle(fontWeight: FontWeight.bold)),
-                              Text(data['synopsis'] ?? '', maxLines: 3),
-                            ],
-                            const Spacer(),
-                            Row(
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.edit,
-                                      color: Colors.blue),
-                                  onPressed: () =>
-                                      _showEditAnimeDialog(context, anime),
-                                ),
-                                const Spacer(),
-                                IconButton(
-                                  icon: const Icon(Icons.delete,
-                                      color: Colors.red),
-                                  onPressed: () async {
-                                    await FirebaseFirestore.instance
-                                        .collection('animes')
-                                        .doc(anime.id)
-                                        .delete();
-                                  },
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     );
                   },
@@ -432,285 +222,15 @@ class _AdminPageState extends State<AdminPage> {
     );
   }
 
-  // =============================
-  // 作品追加
-  // =============================
-  void _showAddAnimeDialog(BuildContext context) {
-    final imageUrl = TextEditingController();
-    final title = TextEditingController();
-    final synopsis = TextEditingController();
+  void _showAddAnimeDialog(BuildContext context) {}
+  void _showEditAnimeDialog(
+      BuildContext context, QueryDocumentSnapshot anime) {}
 
-    List<String>? selectedSeason;
-    List<String> selectedGenres = [];
-    int? selectedYear;
-
-    showDialog(
-      context: context,
-      builder: (_) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text('作品追加'),
-              content: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    _field(imageUrl, '画像URL'),
-                    _field(title, 'タイトル'),
-                    DropdownButtonFormField<int>(
-                      decoration: const InputDecoration(labelText: '制作年'),
-                      value: selectedYear,
-                      items: years
-                          .map((y) => DropdownMenuItem(
-                              value: y, child: Text(y.toString())))
-                          .toList(),
-                      onChanged: (val) =>
-                          setDialogState(() => selectedYear = val),
-                    ),
-                    const SizedBox(height: 8),
-                    Align(
-                        alignment: Alignment.centerLeft,
-                        child: const Text('季節')),
-                    Wrap(
-                      spacing: 4,
-                      children: seasons.keys.map((s) {
-                        final selected = selectedSeason?.contains(s) ?? false;
-                        return FilterChip(
-                          label: Text(seasons[s]!,
-                              style: TextStyle(color: seasonColors[s])),
-                          selected: selected,
-                          backgroundColor: Colors.white,
-                          selectedColor: Colors.white,
-                          side: BorderSide(color: seasonColors[s]!, width: 1),
-                          onSelected: (val) {
-                            setDialogState(() {
-                              if (selectedSeason == null) selectedSeason = [];
-                              if (val)
-                                selectedSeason!.add(s);
-                              else
-                                selectedSeason!.remove(s);
-                            });
-                          },
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 8),
-                    Align(
-                        alignment: Alignment.centerLeft,
-                        child: const Text('ジャンル')),
-                    Wrap(
-                      spacing: 4,
-                      children: genres.map((g) {
-                        final selected = selectedGenres.contains(g);
-                        return FilterChip(
-                          label:
-                              Text(g, style: TextStyle(color: genreColors[g])),
-                          selected: selected,
-                          backgroundColor: Colors.white,
-                          selectedColor: Colors.white,
-                          side: BorderSide(color: genreColors[g]!, width: 1),
-                          onSelected: (val) {
-                            setDialogState(() {
-                              if (val)
-                                selectedGenres.add(g);
-                              else
-                                selectedGenres.remove(g);
-                            });
-                          },
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 8),
-                    _field(synopsis, 'あらすじ', lines: 4),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('キャンセル')),
-                ElevatedButton(
-                  child: const Text('追加'),
-                  onPressed: () async {
-                    if (title.text.trim().isEmpty ||
-                        selectedYear == null ||
-                        selectedSeason == null ||
-                        selectedSeason!.isEmpty ||
-                        selectedGenres.isEmpty) return;
-
-                    await FirebaseFirestore.instance.collection('animes').add({
-                      'imageUrl': imageUrl.text.trim(),
-                      'title': title.text.trim(),
-                      'genre': selectedGenres,
-                      'season': selectedSeason,
-                      'year': selectedYear,
-                      'synopsis': synopsis.text.trim(),
-                      'averageScore': 0.0,
-                      'createdAt': FieldValue.serverTimestamp(),
-                      'updatedAt': FieldValue.serverTimestamp(),
-                    });
-
-                    Navigator.pop(context);
-                  },
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  // =============================
-  // 作品編集
-  // =============================
-  void _showEditAnimeDialog(BuildContext context, QueryDocumentSnapshot anime) {
-    final data = anime.data() as Map<String, dynamic>;
-    final imageUrl = TextEditingController(text: data['imageUrl'] ?? '');
-    final title = TextEditingController(text: data['title'] ?? '');
-    final synopsis = TextEditingController(text: data['synopsis'] ?? '');
-
-    int? selectedYear = years.contains(data['year']) ? data['year'] : null;
-    List<String>? selectedSeason;
-    if (data['season'] != null) {
-      selectedSeason = data['season'] is List
-          ? List<String>.from(data['season'])
-          : [data['season'].toString()];
-    }
-
-    List<String> selectedGenres = [];
-    if (data['genre'] != null) {
-      selectedGenres = data['genre'] is List
-          ? List<String>.from(data['genre'])
-          : [data['genre'].toString()];
-    }
-
-    showDialog(
-      context: context,
-      builder: (_) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text('作品編集'),
-              content: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    _field(imageUrl, '画像URL'),
-                    _field(title, 'タイトル'),
-                    DropdownButtonFormField<int>(
-                      decoration: const InputDecoration(labelText: '制作年'),
-                      value: selectedYear,
-                      items: years
-                          .map((y) => DropdownMenuItem(
-                              value: y, child: Text(y.toString())))
-                          .toList(),
-                      onChanged: (val) =>
-                          setDialogState(() => selectedYear = val),
-                    ),
-                    const SizedBox(height: 8),
-                    Align(
-                        alignment: Alignment.centerLeft,
-                        child: const Text('季節')),
-                    Wrap(
-                      spacing: 4,
-                      children: seasons.keys.map((s) {
-                        final selected = selectedSeason?.contains(s) ?? false;
-                        return FilterChip(
-                          label: Text(seasons[s]!,
-                              style: TextStyle(color: seasonColors[s])),
-                          selected: selected,
-                          backgroundColor: Colors.white,
-                          selectedColor: Colors.white,
-                          side: BorderSide(color: seasonColors[s]!, width: 1),
-                          onSelected: (val) {
-                            setDialogState(() {
-                              if (selectedSeason == null) selectedSeason = [];
-                              if (val)
-                                selectedSeason!.add(s);
-                              else
-                                selectedSeason!.remove(s);
-                            });
-                          },
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 8),
-                    Align(
-                        alignment: Alignment.centerLeft,
-                        child: const Text('ジャンル')),
-                    Wrap(
-                      spacing: 4,
-                      children: genres.map((g) {
-                        final selected = selectedGenres.contains(g);
-                        return FilterChip(
-                          label:
-                              Text(g, style: TextStyle(color: genreColors[g])),
-                          selected: selected,
-                          backgroundColor: Colors.white,
-                          selectedColor: Colors.white,
-                          side: BorderSide(color: genreColors[g]!, width: 1),
-                          onSelected: (val) {
-                            setDialogState(() {
-                              if (val)
-                                selectedGenres.add(g);
-                              else
-                                selectedGenres.remove(g);
-                            });
-                          },
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 8),
-                    _field(synopsis, 'あらすじ', lines: 4),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('キャンセル')),
-                ElevatedButton(
-                  child: const Text('保存'),
-                  onPressed: () async {
-                    if (title.text.trim().isEmpty ||
-                        selectedYear == null ||
-                        selectedSeason == null ||
-                        selectedSeason!.isEmpty ||
-                        selectedGenres.isEmpty) return;
-
-                    await FirebaseFirestore.instance
-                        .collection('animes')
-                        .doc(anime.id)
-                        .update({
-                      'imageUrl': imageUrl.text.trim(),
-                      'title': title.text.trim(),
-                      'genre': selectedGenres,
-                      'season': selectedSeason,
-                      'year': selectedYear,
-                      'synopsis': synopsis.text.trim(),
-                      'updatedAt': FieldValue.serverTimestamp(),
-                    });
-
-                    Navigator.pop(context);
-                  },
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  // =============================
-  // 入力欄ウィジェット
-  // =============================
-  Widget _field(TextEditingController c, String label,
-      {int lines = 1, TextInputType type = TextInputType.text}) {
+  Widget _field(TextEditingController c, String label, {int lines = 1}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: TextField(
         controller: c,
-        keyboardType: type,
         maxLines: lines,
         decoration: InputDecoration(
           labelText: label,
