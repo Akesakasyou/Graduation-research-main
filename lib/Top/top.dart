@@ -46,7 +46,7 @@ class _MainPageWidgetState extends State<MainPageWidget> {
         child: Column(
           children: [
             _buildHtmlSlider(),
-            const SizedBox(height: 20),
+            const SizedBox(height: 20),,
             const SizedBox(height: 30),
             const Footer(),
             const SizedBox(height: 30),

@@ -41,10 +41,10 @@ class _HalloffameState extends State<Halloffame> {
         .collection('Halloffame')
         .get();
 
-    final futures = hall.docs.map((doc) async {
+    final futures = votes.docs.map((v) async {
       final animeDoc = await FirebaseFirestore.instance
           .collection('animes')
-          .doc(doc.id)
+          .doc(v.id)
           .get();
 
       if (!animeDoc.exists) return null;
@@ -86,152 +86,84 @@ class _HalloffameState extends State<Halloffame> {
             itemCount: list.length,
             itemBuilder: (context, index) {
               final data = list[index];
-              final score = ((data['score'] ?? 0) as num).toDouble();
 
-              return _HallOfFameCard(
-                title: data['title'] ?? '',
-                imageUrl: data['imageUrl'],
-                score: score,
-                synopsis: data['synopsis'],
-              );
-            },
-          );
-        },
-      ),
-    );
-  }
-}
+              final seasonsList = data['season'] is List
+                  ? List<String>.from(data['season'])
+                  : [data['season']];
 
-/// ===============================
-/// 殿堂入りカード
-/// ===============================
-class _HallOfFameCard extends StatelessWidget {
-  final String title;
-  final String? imageUrl;
-  final double score;
-  final String? synopsis;
+              final genresList = data['genre'] is List
+                  ? List<String>.from(data['genre'])
+                  : [data['genre']];
 
-  const _HallOfFameCard({
-    required this.title,
-    required this.imageUrl,
-    required this.score,
-    required this.synopsis,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final displaySynopsis =
-        (synopsis == null || synopsis!.trim().isEmpty)
-            ? 'あらすじが登録されていません。'
-            : synopsis!;
-
-    return SizedBox(
-      height: 300, // カード全体の高さを固定
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [
-              Color(0xFFFFD700),
-              Color(0xFFFFF4C1),
-              Color(0xFFFFD700),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: const [
-            BoxShadow(
-              color: Colors.black26,
-              blurRadius: 8,
-              offset: Offset(0, 4),
-            ),
-          ],
-        ),
-        padding: const EdgeInsets.all(3),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Stack(
-            children: [
-              Column(
-                children: [
-                  // 画像
-                  SizedBox(
-                    height: 140,
-                    width: double.infinity,
-                    child: imageUrl != null && imageUrl!.isNotEmpty
-                        ? Image.network(imageUrl!, fit: BoxFit.cover)
-                        : Container(
-                            color: Colors.grey[300],
-                            child: const Icon(Icons.image, size: 40),
-                          ),
-                  ),
-
-                  // タイトル・点数・あらすじ部分
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // タイトル
-                          Text(
-                            title,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const Divider(),
-                          // 点数
-                          Text(
-                            '${score.toInt()} 点',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          buildStarRating(score),
-                          const Divider(),
-                          // あらすじ（スクロール可能）
-                          Expanded(
-                            child: SingleChildScrollView(
-                              child: Text(
-                                displaySynopsis,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: synopsis == null || synopsis!.trim().isEmpty
-                                      ? Colors.grey
-                                      : Colors.black,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              // 殿堂入りバッジ
-              Positioned(
-                top: 8,
-                left: 8,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.black87,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Row(
+              return Card(
+                margin: const EdgeInsets.all(8),
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.emoji_events, color: Colors.amber, size: 14),
-                      SizedBox(width: 4),
+                      (data['imageUrl'] ?? '').toString().isNotEmpty
+                          ? Image.network(
+                              data['imageUrl'],
+                              width: double.infinity,
+                              height: 150,
+                              fit: BoxFit.cover,
+                            )
+                          : Container(
+                              height: 150,
+                              color: Colors.grey[300],
+                              child: const Icon(Icons.image, size: 50),
+                            ),
+
+                      const SizedBox(height: 8),
+
+                      Text(
+                        data['title'] ?? '',
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+
+                      const SizedBox(height: 6),
+                      const Text('制作年', style: TextStyle(fontWeight: FontWeight.bold)),
+                      Text('${data['year']}'),
+
+                      const SizedBox(height: 4),
+                      const Text('季節', style: TextStyle(fontWeight: FontWeight.bold)),
+                      Wrap(
+                        spacing: 4,
+                        children: seasonsList.map((s) {
+                          return Chip(
+                            label: Text(seasons[s] ?? s,
+                                style: TextStyle(color: seasonColors[s])),
+                            backgroundColor: Colors.white,
+                            side: BorderSide(color: seasonColors[s]!, width: 1),
+                          );
+                        }).toList(),
+                      ),
+
+                      const SizedBox(height: 4),
+                      const Text('ジャンル', style: TextStyle(fontWeight: FontWeight.bold)),
+                      Wrap(
+                        spacing: 4,
+                        runSpacing: 4,
+                        children: genresList.map((g) {
+                          return Chip(
+                            label: Text(g,
+                                style: TextStyle(color: genreColors[g])),
+                            backgroundColor: Colors.white,
+                            side: BorderSide(color: genreColors[g]!, width: 1),
+                          );
+                        }).toList(),
+                      ),
+
+                      const SizedBox(height: 4),
+                      const Text('あらすじ',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      Text(data['synopsis'] ?? '', maxLines: 3),
+
+                      const Spacer(),
+
+                      buildStarRating(data['score'].toDouble()),
                       Text(
                         '殿堂入り',
                         style: TextStyle(
