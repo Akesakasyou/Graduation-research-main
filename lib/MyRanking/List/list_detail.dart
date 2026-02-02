@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '/MyRanking/List/list_detail_detail.dart';
 
 /// ⭐ スター表示
 Widget buildStarRating(double score) {
@@ -48,8 +49,7 @@ class _MyRankingPageState extends State<MyRankingPage> {
     'autumn': '秋',
     'winter': '冬',
   };
-
-  Future<List<Map<String, dynamic>>> loadMyRanking() async {
+Future<List<Map<String, dynamic>>> loadMyRanking() async {
   final snap = await FirebaseFirestore.instance
       .collection('users')
       .doc(uid)
@@ -59,15 +59,18 @@ class _MyRankingPageState extends State<MyRankingPage> {
       .get();
 
   return snap.docs.map((doc) {
-    final data = doc.data();
+  final data = doc.data();
+  return {
+    'voteId': doc.id, // ★これ超重要
+    'score': (data['score'] as num).toDouble(),
+    'title': data['title'] ?? widget.title,
+    'imageUrl': data['imageUrl'] ?? '',
+    'comment': data['comment'] ?? '',
+  };
+}).toList();
 
-    return {
-      'score': (data['score'] as num).toDouble(),
-      'title': widget.title,
-      'imageUrl': '',
-    };
-  }).toList();
 }
+
 
 
 
@@ -186,26 +189,44 @@ class _MyRankingPageState extends State<MyRankingPage> {
                     final item = list[index];
 
                     return Card(
-                      margin: const EdgeInsets.all(12),
-                      child: ListTile(
-                        leading: item['imageUrl'] != ''
-                            ? Image.network(
-                                item['imageUrl'],
-                                width: 60,
-                                fit: BoxFit.cover,
-                              )
-                            : const Icon(Icons.image_not_supported),
-                        title: Text('${index + 1}位：${item['title']}'),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('あなたの評価：${item['score']} 点'),
-                            buildStarRating(item['score'].toDouble()),
-                          ],
-                        ),
-                        
-                      ),
-                    );
+  margin: const EdgeInsets.all(12),
+  child: ListTile(
+    leading: item['imageUrl'] != ''
+        ? Image.network(
+            item['imageUrl'],
+            width: 60,
+            fit: BoxFit.cover,
+          )
+        : const Icon(Icons.image_not_supported),
+    title: Text('${index + 1}位：${item['title']}'),
+    subtitle: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('あなたの評価：${item['score']} 点'),
+        buildStarRating(item['score'].toDouble()),
+      ],
+    ),
+    onTap: () {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => ListDetailPage(
+        rank: index + 1,
+        animeId: widget.animeId,
+        voteId: item['voteId'],
+        title: item['title'],
+        imageUrl: item['imageUrl'],
+        score: item['score'],
+        comment: item['comment'],
+      ),
+    ),
+  );
+},
+
+
+  ),
+);
+
                   },
                 );
               },

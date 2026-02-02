@@ -17,7 +17,6 @@ class _VotePageState extends State<VotePage> {
 
   int _score = 0;
   bool _includeGlobal = false;
-  bool _includeMyRanking = false;
   bool _includeHallOfFame = false;
 
   bool _loading = true;
@@ -25,6 +24,10 @@ class _VotePageState extends State<VotePage> {
 
   String _animeTitle = '';
   String _animeImageUrl = '';
+  String _animeSynopsis = '';
+
+  // マイリスト一時保持
+  final Map<String, bool> _myListTemp = {};
 
   @override
   void initState() {
@@ -60,7 +63,6 @@ class _VotePageState extends State<VotePage> {
         _scoreController.text = '$_score';
         _commentController.text = d['comment'] ?? '';
         _includeGlobal = d['includeGlobal'] ?? false;
-        _includeMyRanking = d['includeMyRanking'] ?? false;
         _includeHallOfFame = d['includeHallOfFame'] ?? false;
       }
 
@@ -73,29 +75,42 @@ class _VotePageState extends State<VotePage> {
         final d = animeDoc.data()!;
         _animeTitle = d['title'] ?? '';
         _animeImageUrl = d['imageUrl'] ?? '';
+        _animeSynopsis = d['synopsis'] ?? '';
+      }
+
+      // マイリスト初期化
+      final pages = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('Creatmypage')
+          .get();
+
+      for (final p in pages.docs) {
+        final vote = await p.reference.collection('votes').doc(uid).get();
+        _myListTemp[p.id] = vote.exists && vote.data()!['includeMyRanking'] == true;
       }
     } finally {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
   // =============================
-  // 平均更新（殿堂入り除外）
+  // 平均点再計算
   // =============================
   Future<void> _updateAverageScore() async {
-    final snap =
-        await FirebaseFirestore.instance.collectionGroup('votes').get();
+    final snap = await FirebaseFirestore.instance
+        .collection('reviews')
+        .doc(widget.animeId)
+        .collection('users')
+        .where('includeGlobal', isEqualTo: true)
+        .get();
 
-    final scores = snap.docs
-        .where((d) => (d['includeGlobal'] ?? false) == true)
-        .where((d) => (d['includeHallOfFame'] ?? false) == false)
-        .where((d) => d.reference.parent.parent?.id == widget.animeId)
-        .map((d) => (d['score'] ?? 0) as int)
-        .toList();
+    double avg = 0;
 
-    if (scores.isEmpty) return;
-
-    final avg = scores.reduce((a, b) => a + b) / scores.length;
+    if (snap.docs.isNotEmpty) {
+      final scores = snap.docs.map((d) => d['score'] as int).toList();
+      avg = scores.reduce((a, b) => a + b) / scores.length;
+    }
 
     await FirebaseFirestore.instance
         .collection('animes')
@@ -106,194 +121,200 @@ class _VotePageState extends State<VotePage> {
     });
   }
 
-  // =============================
-  // チェックONで votes に保存
-  // =============================
-  Future<void> _saveReviewToMyRanking(String creatmypageDocId) async {
-    final votesRef = FirebaseFirestore.instance
+
+// =============================
+// AverageScoreに保存
+// =============================
+Future<void> _saveReview() async {
+  if (uid == null) {
+    print('エラー: ログインユーザーの uid が取得できません');
+    return;
+  }
+
+  try {
+    // reviewsコレクションのアニメID配下にユーザーIDで保存（上書き可）
+    final reviewRef = FirebaseFirestore.instance
+        .collection('reviews')
+        .doc(widget.animeId)
         .collection('users')
-        .doc(uid)
-        .collection('Creatmypage')
-        .doc(creatmypageDocId)
-        .collection('votes')
         .doc(uid);
 
-    await votesRef.set({
+    await reviewRef.set({
       'userId': uid,
+      'title': _animeTitle,
       'score': _score,
       'comment': _commentController.text,
       'includeGlobal': _includeGlobal,
-      'includeMyRanking': true,
       'includeHallOfFame': _includeHallOfFame,
       'updatedAt': FieldValue.serverTimestamp(),
-    });
+    }, SetOptions(merge: true)); // merge:trueで既存データを保持しつつ更新
 
-    if (_includeGlobal) {
-      await _updateAverageScore();
-    }
-  }
-
-  // =============================
-  // 保存＝更新／削除
-  // =============================
-  Future<void> _saveReview() async {
-    final voteDocRef = FirebaseFirestore.instance
+    // ユーザー側のマイ投票リストにも保存
+    await FirebaseFirestore.instance
         .collection('users')
         .doc(uid)
-        .collection('Creatmypage')
-        .doc(widget.animeId)
-        .collection('votes')
-        .doc(uid);
+        .collection('AverageScore')
+        .doc()
+        .set({
+      'score': _score,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
 
-    final hallDocRef = FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .collection('Halloffame')
-        .doc(widget.animeId);
-
-    // 全OFFなら削除
-    if (!_includeMyRanking && !_includeGlobal && !_includeHallOfFame) {
-      if ((await voteDocRef.get()).exists) {
-        await voteDocRef.delete();
-      }
-      if ((await hallDocRef.get()).exists) {
-        await hallDocRef.delete();
-      }
-      await _updateAverageScore();
-      if (!mounted) return;
-      Navigator.pop(context);
-      return;
-    }
-
-    // ONあり → votes 更新
-    if (_includeMyRanking || _includeGlobal) {
-      await voteDocRef.set({
-        'userId': uid,
-        'score': _score,
-        'comment': _commentController.text,
-        'includeGlobal': _includeGlobal,
-        'includeMyRanking': _includeMyRanking,
-        'includeHallOfFame': _includeHallOfFame,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-    }
-
-    // 殿堂入り更新
-    if (_includeHallOfFame) {
-      await hallDocRef.set({
-        'userId': uid,
-        'score': _score,
-        'comment': _commentController.text,
-        'includeGlobal': _includeGlobal,
-        'includeMyRanking': _includeMyRanking,
-        'includeHallOfFame': true,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-    } else {
-      if ((await hallDocRef.get()).exists) {
-        await hallDocRef.delete();
-      }
-    }
-
+    // 平均スコア更新処理
     await _updateAverageScore();
 
     if (!mounted) return;
     Navigator.pop(context);
+    print('レビュー保存完了: ${reviewRef.id}');
+  } catch (e) {
+    print('Firestore 保存エラー: $e');
   }
+}
+
+// =============================
+// MyList保存
+// =============================
+Future<void> _saveMyList() async {
+  try {
+    final batch = FirebaseFirestore.instance.batch();
+
+    for (final entry in _myListTemp.entries) {
+      if (!entry.value) continue;
+
+      final animeId = entry.key;
+
+      final pageDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('Creatmypage')
+          .doc(animeId)
+          .get();
+
+      if (!pageDoc.exists) continue;
+
+      final pageData = pageDoc.data()!;
+
+      final voteRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('Creatmypage')
+          .doc(animeId)
+          .collection('votes')
+          .doc();
+
+      batch.set(voteRef, {
+        'animeId': animeId,
+        'title': _animeTitle,
+        'imageUrl': _animeImageUrl,
+        'score': _score,
+        'comment': _commentController.text,
+        'includeMyRanking': true,
+        'updatedAt': Timestamp.now(),
+        'createdAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
+
+    await batch.commit();
+
+    debugPrint('✅ batch commit 完了');
+
+    if (mounted) Navigator.pop(context);
+  } catch (e, s) {
+    debugPrint('🔥 Firestore error: $e');
+    debugPrint('$s');
+  }
+}
+
+
+// =============================
+// チェック外しで削除
+// =============================
+Future<void> _deleteUnchecked() async {
+  for (final entry in _myListTemp.entries) {
+    final animeId = entry.key;
+    final checked = entry.value;
+
+    if (!checked) {
+      final votesCollection = FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('Creatmypage')
+          .doc(animeId)
+          .collection('votes');
+
+      final snapshot = await votesCollection.get();
+      for (final doc in snapshot.docs) {
+        await doc.reference.delete();
+      }
+    }
+  }
+}
+
 
   // =============================
-  // マイランキング一覧（チェックON/OFFで votes 更新、王冠付き）
+  // マイランキングダイアログ
   // =============================
   void _showMyRankingDialog() {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('マイランキング'),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: 450,
-          child: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('users')
-                .doc(uid)
-                .collection('Creatmypage')
-                .orderBy('order')
-                .snapshots(),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              final docs = snapshot.data!.docs;
-              if (docs.isEmpty) {
-                return const Center(child: Text('まだ作品がありません'));
-              }
-
-              return GridView.builder(
-  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-    crossAxisCount: 4,
-    crossAxisSpacing: 10,
-    mainAxisSpacing: 10,
-    childAspectRatio: 3, // 縦に長すぎないように調整
-  ),
-  itemCount: docs.length,
-  itemBuilder: (context, index) {
-    final data = docs[index].data() as Map<String, dynamic>;
-    final docRef = docs[index].reference;
-
-    return GestureDetector(
-      onTap: () {
-        // タイトルタップでもチェック切り替え
-        final newValue = !(data['includeMyRanking'] ?? false);
-        docRef.set({'includeMyRanking': newValue}, SetOptions(merge: true));
-        setState(() {
-          data['includeMyRanking'] = newValue;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        decoration: BoxDecoration(
-          color: Colors.grey.shade300,
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Row(
+        titlePadding: const EdgeInsets.fromLTRB(24, 16, 8, 0),
+        title: Row(
           children: [
-            Checkbox(
-              value: data['includeMyRanking'] ?? false,
-              onChanged: (v) {
-                docRef.set({'includeMyRanking': v}, SetOptions(merge: true));
-                setState(() {
-                  data['includeMyRanking'] = v;
-                });
-              },
-            ),
-            Expanded(
-              child: Text(
-                data['title'] ?? '',
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
+            const Expanded(child: Text('マイリスト')),
+            TextButton(
+              onPressed: _saveMyList,
+              child: const Text('保存'),
             ),
           ],
         ),
-      ),
-    );
-  },
-);
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 450,
+          child: StatefulBuilder(
+            builder: (context, setLocal) {
+              return StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(uid)
+                    .collection('Creatmypage')
+                    .snapshots(), // orderBy は削除して安全化
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
 
+                  final pages = snapshot.data!.docs;
 
+                  return ListView.builder(
+                    itemCount: pages.length,
+                    itemBuilder: (context, index) {
+                      final page = pages[index];
+                      final checked = _myListTemp[page.id] ?? false;
 
+                      return Card(
+                        child: ListTile(
+                          title: Text(page['title'] ?? ''),
+                          trailing: Checkbox(
+                            value: checked,
+                            onChanged: (v) {
+                              setLocal(() {
+                                _myListTemp[page.id] = v ?? false;
+                              });
+                            },
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              );
             },
           ),
         ),
       ),
     );
   }
-
-  Widget _noImage() => Container(
-        color: Colors.grey,
-        child: const Center(child: Text('No Image')),
-      );
 
   @override
   Widget build(BuildContext context) {
@@ -310,19 +331,55 @@ class _VotePageState extends State<VotePage> {
                 children: [
                   if (_animeImageUrl.isNotEmpty)
                     Card(
-                      child: Column(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          SizedBox(
-                            width: 800,
-                            height: 400,
-                            child: Image.network(_animeImageUrl, fit: BoxFit.cover),
-                          ),
                           Padding(
-                            padding: const EdgeInsets.all(8),
-                            child: Text(
-                              _animeTitle,
-                              style: const TextStyle(
-                                  fontSize: 20, fontWeight: FontWeight.bold),
+                            padding: const EdgeInsets.all(16),
+                            child: SizedBox(
+                              width: 600,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  SizedBox(
+                                    width: 400,
+                                    height: 200,
+                                    child: Transform.translate(
+                                      offset: const Offset(20, 0),
+                                      child: Image.network(
+                                        _animeImageUrl,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) =>
+                                            const Center(child: Text('画像なし')),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    _animeTitle,
+                                    style: const TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.all(5),
+                              child: _animeSynopsis.isNotEmpty
+                                  ? Text(
+                                      _animeSynopsis,
+                                      style: const TextStyle(
+                                          fontSize: 16, height: 1.4),
+                                    )
+                                  : const Text(
+                                      'あらすじなし',
+                                      style: TextStyle(
+                                          fontSize: 16,
+                                          fontStyle: FontStyle.italic),
+                                    ),
                             ),
                           ),
                         ],
@@ -333,40 +390,57 @@ class _VotePageState extends State<VotePage> {
                     children: [
                       Expanded(
                         child: Card(
-                          child: Column(
-                            children: [
-                              Row(
-                                children: [
-                                  const Text('スコア'),
-                                  Expanded(
-                                    child: TextField(
-                                      controller: _scoreController,
-                                      textAlign: TextAlign.right,
-                                      keyboardType: TextInputType.number,
-                                      onChanged: (v) {
-                                        final parsed = int.tryParse(v);
-                                        if (parsed != null) {
-                                          setState(() => _score = parsed);
-                                        }
-                                      },
+                          margin: const EdgeInsets.all(16),
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Text('スコア'),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: SizedBox(
+                                        height: 40,
+                                        child: TextField(
+                                          controller: _scoreController,
+                                          textAlign: TextAlign.right,
+                                          keyboardType: TextInputType.number,
+                                          decoration: const InputDecoration(
+                                            contentPadding: EdgeInsets.symmetric(
+                                                horizontal: 8, vertical: 0),
+                                            border: OutlineInputBorder(),
+                                          ),
+                                          onChanged: (v) {
+                                            final parsed = int.tryParse(v);
+                                            if (parsed != null) {
+                                              setState(() => _score = parsed);
+                                            }
+                                          },
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                  const Text('点'),
-                                ],
-                              ),
-                              Slider(
-                                value: _score.toDouble(),
-                                min: 0,
-                                max: 100,
-                                divisions: 100,
-                                onChanged: (v) {
-                                  setState(() {
-                                    _score = v.round();
-                                    _scoreController.text = '$_score';
-                                  });
-                                },
-                              ),
-                            ],
+                                    const SizedBox(width: 8),
+                                    const Text('点'),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Slider(
+                                  value: _score.toDouble(),
+                                  min: 0,
+                                  max: 100,
+                                  divisions: 100,
+                                  onChanged: (v) {
+                                    setState(() {
+                                      _score = v.round();
+                                      _scoreController.text = '$_score';
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -385,7 +459,29 @@ class _VotePageState extends State<VotePage> {
                               child: SwitchListTile(
                                 title: const Text('殿堂入り'),
                                 value: _includeHallOfFame,
-                                onChanged: (v) => setState(() => _includeHallOfFame = v),
+                                onChanged: (v) async {
+                                  setState(() => _includeHallOfFame = v);
+
+                                  final hallRef = FirebaseFirestore.instance
+                                      .collection('users')
+                                      .doc(uid)
+                                      .collection('Halloffame')
+                                      .doc(widget.animeId);
+
+                                  if (v) {
+                                    await hallRef.set({
+                                      'animeId': widget.animeId,
+                                      'title': _animeTitle,
+                                      'imageUrl': _animeImageUrl,
+                                      'score': _score,
+                                      'comment': _commentController.text,
+                                      'createdAt': FieldValue.serverTimestamp(),
+                                      'updatedAt': FieldValue.serverTimestamp(),
+                                    });
+                                  } else {
+                                    await hallRef.delete();
+                                  }
+                                },
                               ),
                             ),
                             Card(
@@ -400,11 +496,25 @@ class _VotePageState extends State<VotePage> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  TextField(
-                    controller: _commentController,
-                    maxLines: 4,
-                  ),
-                  const SizedBox(height: 16),
+Column(
+  crossAxisAlignment: CrossAxisAlignment.start, // ←これで子要素を左揃えに
+  children: [
+    const SizedBox(height: 16),
+    const Text(
+      '感想',
+      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+    ),
+    TextField(
+      controller: _commentController,
+      maxLines: 4,
+      textAlign: TextAlign.left, // 入力文字も左揃え
+    ),
+  ],
+)
+
+
+
+                  ,
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(

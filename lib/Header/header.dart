@@ -9,8 +9,7 @@ import '/MyRanking/total.dart';
 import '/Evaluation/Vreview.dart';
 import '/Evaluation/Vselect.dart';
 import '/main.dart';
-
-import '../MyRanking/List/Halloffame.dart';
+import '/MyRanking/List/Halloffame.dart';
 
 // =============================
 // 共通ヘッダー

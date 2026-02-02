@@ -276,96 +276,114 @@ class _VoteSelectPageState extends State<VoteSelectPage> {
       .toList();
 
   return Card(
-    margin: const EdgeInsets.all(8),
-    child: Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          (data['imageUrl'] ?? '').toString().isNotEmpty
-              ? Image.network(
-                  data['imageUrl'],
-                  width: double.infinity,
-                  height: 150,
-                  fit: BoxFit.cover,
-                  loadingBuilder: (context, child, progress) {
-                    if (progress == null) return child;
-                    return Container(
+  margin: const EdgeInsets.all(8),
+  child: Padding(
+    padding: const EdgeInsets.all(8.0),
+    child: SizedBox(
+      height: 400, // 高さ制限
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 画像表示
+            (data['imageUrl'] ?? '').toString().isNotEmpty
+                ? Image.network(
+                    data['imageUrl'],
+                    width: double.infinity,
+                    height: 150,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, progress) {
+                      if (progress == null) return child;
+                      return Container(
+                        width: double.infinity,
+                        height: 150,
+                        color: Colors.grey[300],
+                        child: const Center(child: CircularProgressIndicator()),
+                      );
+                    },
+                    errorBuilder: (_, __, ___) => Container(
                       width: double.infinity,
                       height: 150,
                       color: Colors.grey[300],
-                      child: const Center(child: CircularProgressIndicator()),
-                    );
-                  },
-                  errorBuilder: (_, __, ___) => Container(
+                      child: const Icon(Icons.broken_image, size: 50),
+                    ),
+                  )
+                : Container(
                     width: double.infinity,
                     height: 150,
                     color: Colors.grey[300],
-                    child: const Icon(Icons.broken_image, size: 50),
+                    child: const Icon(Icons.image, size: 50),
                   ),
-                )
-              : Container(
-                  width: double.infinity,
-                  height: 150,
-                  color: Colors.grey[300],
-                  child: const Icon(Icons.image, size: 50),
-                ),
-          const SizedBox(height: 8),
-          Text(
-            data['title'] ?? '',
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          const Text('制作年', style: TextStyle(fontWeight: FontWeight.bold)),
-          Text('${data['year'] ?? '-'}'),
-          const SizedBox(height: 4),
+            const SizedBox(height: 8),
 
-          if (animeSeasons.isNotEmpty) ...[
-            const Text('季節', style: TextStyle(fontWeight: FontWeight.bold)),
-            Wrap(
-              spacing: 4,
-              children: animeSeasons.map((seasonKey) {
-                return Chip(
-                  label: Text(
-                    _VoteSelectPageState.seasons[seasonKey] ?? seasonKey,
-                    style: TextStyle(color: _VoteSelectPageState.seasonColors[seasonKey]),
-                  ),
-                  backgroundColor: Colors.white,
-                  side: BorderSide(
-                    color: _VoteSelectPageState.seasonColors[seasonKey] ?? Colors.grey,
-                    width: 1,
-                  ),
-                );
-              }).toList(),
+            // タイトル
+            Text(
+              data['title'] ?? '',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 4),
-          ],
+            const Divider(), // タイトル下に線
 
-          if (animeGenres.isNotEmpty) ...[
-            const Text('ジャンル', style: TextStyle(fontWeight: FontWeight.bold)),
-            Wrap(
-              spacing: 4,
-              runSpacing: 4,
-              children: animeGenres.map((g) {
-                return Chip(
-                  label: Text(g, style: TextStyle(color: _VoteSelectPageState.genreColors[g])),
-                  backgroundColor: Colors.white,
-                  side: BorderSide(
+            // 制作年
+            const Text('制作年', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text('${data['year'] ?? '-'}'),
+            const Divider(), // 制作年下に線
+
+            // 季節
+            if (animeSeasons.isNotEmpty) ...[
+              const Text('季節', style: TextStyle(fontWeight: FontWeight.bold)),
+              Wrap(
+                spacing: 4,
+                children: animeSeasons.map((seasonKey) {
+                  return Chip(
+                    label: Text(
+                      _VoteSelectPageState.seasons[seasonKey] ?? seasonKey,
+                      style: TextStyle(color: _VoteSelectPageState.seasonColors[seasonKey]),
+                    ),
+                    backgroundColor: Colors.white,
+                    side: BorderSide(
+                      color: _VoteSelectPageState.seasonColors[seasonKey] ?? Colors.grey,
+                      width: 1,
+                    ),
+                  );
+                }).toList(),
+              ),
+              const Divider(), // 季節下に線
+            ],
+
+            // ジャンル
+            if (animeGenres.isNotEmpty) ...[
+              const Text('ジャンル', style: TextStyle(fontWeight: FontWeight.bold)),
+              Wrap(
+                spacing: 4,
+                runSpacing: 4,
+                children: animeGenres.map((g) {
+                  return Chip(
+                    label: Text(g, style: TextStyle(color: _VoteSelectPageState.genreColors[g])),
+                    backgroundColor: Colors.white,
+                    side: BorderSide(
                       color: _VoteSelectPageState.genreColors[g] ?? Colors.grey,
-                      width: 1),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 4),
-          ],
+                      width: 1,
+                    ),
+                  );
+                }).toList(),
+              ),
+              const Divider(), // ジャンル下に線
+            ],
 
-          if ((data['synopsis'] ?? '').toString().isNotEmpty) ...[
-            const Text('あらすじ', style: TextStyle(fontWeight: FontWeight.bold)),
-            Text(data['synopsis'], style: const TextStyle(height: 1.4)),
+            // あらすじ
+            if ((data['synopsis'] ?? '').toString().isNotEmpty) ...[
+              const Text('あらすじ', style: TextStyle(fontWeight: FontWeight.bold)),
+              Text(data['synopsis'], style: const TextStyle(height: 1.4)),
+            ],
           ],
-        ],
+        ),
       ),
     ),
-  );
+  ),
+);
+
+
+
+
  }
 }

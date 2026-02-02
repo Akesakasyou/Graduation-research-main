@@ -266,148 +266,132 @@ class _AdminPageState extends State<AdminPage> {
                 }
 
                 return GridView.builder(
-                  padding: const EdgeInsets.all(8),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 4,
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
-                    childAspectRatio: 0.65,
-                  ),
-                  itemCount: docs.length,
-                  itemBuilder: (context, index) {
-                    final anime = docs[index];
-                    final data = anime.data() as Map<String, dynamic>;
+  padding: const EdgeInsets.all(8),
+  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+    crossAxisCount: 4,
+    crossAxisSpacing: 8,
+    mainAxisSpacing: 8,
+    childAspectRatio: 0.65,
+  ),
+  itemCount: docs.length,
+  itemBuilder: (context, index) {
+    final anime = docs[index];
+    final data = anime.data() as Map<String, dynamic>;
 
-                    List<String> animeSeasons = [];
-                    if (data['season'] != null) {
-                      if (data['season'] is List) {
-                        animeSeasons = List<String>.from(data['season']);
-                      } else {
-                        animeSeasons = [data['season'].toString()];
-                      }
-                    }
+    List<String> animeSeasons = [];
+    if (data['season'] != null) {
+      animeSeasons = data['season'] is List
+          ? List<String>.from(data['season'])
+          : [data['season'].toString()];
+    }
 
-                    List<String> animeGenres = [];
-                    if (data['genre'] != null) {
-                      if (data['genre'] is List) {
-                        animeGenres = List<String>.from(data['genre']);
-                      } else {
-                        animeGenres = [data['genre'].toString()];
-                      }
-                    }
+    List<String> animeGenres = [];
+    if (data['genre'] != null) {
+      animeGenres = data['genre'] is List
+          ? List<String>.from(data['genre'])
+          : [data['genre'].toString()];
+    }
 
-                    return Card(
-                      margin: const EdgeInsets.all(8),
-                      child: Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            (data['imageUrl'] ?? '').toString().isNotEmpty
-                                ? Image.network(
-                                    data['imageUrl'],
-                                    width: double.infinity,
-                                    height: 150,
-                                    fit: BoxFit.cover,
-                                    loadingBuilder: (context, child, progress) {
-                                      if (progress == null) return child;
-                                      return Container(
-                                        width: double.infinity,
-                                        height: 150,
-                                        color: Colors.grey[300],
-                                        child: const Center(
-                                            child: CircularProgressIndicator()),
-                                      );
-                                    },
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Container(
-                                        width: double.infinity,
-                                        height: 150,
-                                        color: Colors.grey[300],
-                                        child:
-                                            const Icon(Icons.broken_image, size: 50),
-                                      );
-                                    },
-                                  )
-                                : Container(
-                                    width: double.infinity,
-                                    height: 150,
-                                    color: Colors.grey[300],
-                                    child: const Icon(Icons.image, size: 50),
-                                  ),
-                            const SizedBox(height: 8),
-                            Text(
-                              data['title'] ?? '',
-                              style: const TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 8),
-                            const Text('制作年', style: TextStyle(fontWeight: FontWeight.bold)),
-                            Text('${data['year'] ?? '-'}'),
-                            const SizedBox(height: 4),
+    return Card(
+  margin: const EdgeInsets.all(8),
+  child: Padding(
+    padding: const EdgeInsets.all(8.0),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 画像
+        if ((data['imageUrl'] ?? '').toString().isNotEmpty)
+          Image.network(
+            data['imageUrl'],
+            width: double.infinity,
+            height: 150,
+            fit: BoxFit.cover,
+          )
+        else
+          Container(
+            width: double.infinity,
+            height: 150,
+            color: Colors.grey[300],
+            child: const Icon(Icons.image, size: 50),
+          ),
+        const SizedBox(height: 8),
 
-                            if (animeSeasons.isNotEmpty) ...[
-                              const Text('季節', style: TextStyle(fontWeight: FontWeight.bold)),
-                              Wrap(
-                                spacing: 4,
-                                children: animeSeasons.map((s) {
-                                  return Chip(
-                                    label: Text(seasons[s] ?? s,
-                                        style: TextStyle(color: seasonColors[s])),
-                                    backgroundColor: Colors.white,
-                                    side: BorderSide(color: seasonColors[s]!, width: 1),
-                                  );
-                                }).toList(),
-                              ),
-                              const SizedBox(height: 4),
-                            ],
+        // タイトル
+        Text(
+          data['title'] ?? '',
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 4),
+        const Divider(), // タイトルの下に区切り線
 
-                            if (animeGenres.isNotEmpty) ...[
-                              const Text('ジャンル', style: TextStyle(fontWeight: FontWeight.bold)),
-                              Wrap(
-                                spacing: 4,
-                                runSpacing: 4,
-                                children: animeGenres.map((g) {
-                                  return Chip(
-                                    label: Text(g, style: TextStyle(color: genreColors[g])),
-                                    backgroundColor: Colors.white,
-                                    side: BorderSide(color: genreColors[g]!, width: 1),
-                                  );
-                                }).toList(),
-                              ),
-                              const SizedBox(height: 4),
-                            ],
+        // シーズン
+        if (animeSeasons.isNotEmpty)
+          Wrap(
+            spacing: 4,
+            children: animeSeasons.map((s) => Chip(
+              label: Text(seasons[s] ?? s, style: TextStyle(color: seasonColors[s])),
+              backgroundColor: Colors.white,
+              side: BorderSide(color: seasonColors[s]!, width: 1),
+            )).toList(),
+          ),
+        if (animeSeasons.isNotEmpty) const Divider(), // シーズンの下に区切り線
 
-                            if ((data['synopsis'] ?? '').toString().isNotEmpty) ...[
-                              const Text('あらすじ', style: TextStyle(fontWeight: FontWeight.bold)),
-                              Text(data['synopsis'], style: const TextStyle(height: 1.4)),
-                            ],
+        // ジャンル
+        if (animeGenres.isNotEmpty)
+          Wrap(
+            spacing: 4,
+            children: animeGenres.map((g) => Chip(
+              label: Text(g, style: TextStyle(color: genreColors[g])),
+              backgroundColor: Colors.white,
+              side: BorderSide(color: genreColors[g]!, width: 1),
+            )).toList(),
+          ),
+        if (animeGenres.isNotEmpty) const Divider(), // ジャンルの下に区切り線
 
-                            const Spacer(),
-                            Row(
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.edit, color: Colors.blue),
-                                  onPressed: () => _showEditAnimeDialog(context, anime),
-                                ),
-                                const Spacer(),
-                                IconButton(
-                                  icon: const Icon(Icons.delete, color: Colors.red),
-                                  onPressed: () async {
-                                    await FirebaseFirestore.instance
-                                        .collection('animes')
-                                        .doc(anime.id)
-                                        .delete();
-                                  },
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                );
+        const SizedBox(height: 4),
+
+        // あらすじ（スクロール可能）
+        Expanded(
+          child: SingleChildScrollView(
+            child: Text(
+              data['synopsis']?.toString() ?? 'あらすじなし',
+              style: const TextStyle(height: 1.4),
+            ),
+          ),
+        ),
+        const Divider(), // あらすじの下に区切り線
+
+        // 編集・削除ボタン
+        Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.edit, color: Colors.blue),
+              onPressed: () => _showEditAnimeDialog(context, anime),
+            ),
+            const Spacer(),
+            IconButton(
+              icon: const Icon(Icons.delete, color: Colors.red),
+              onPressed: () async {
+                await FirebaseFirestore.instance
+                    .collection('animes')
+                    .doc(anime.id)
+                    .delete();
+              },
+            ),
+          ],
+        ),
+      ],
+    ),
+  ),
+);
+
+
+  },
+);
+
+
+
+
               },
             ),
           ),

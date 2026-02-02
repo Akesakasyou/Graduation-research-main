@@ -1,102 +1,64 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
-class Usermylist extends StatelessWidget {
-  const Usermylist({super.key});
+class OtherUserRankingPage extends StatelessWidget {
+  final Map<String, dynamic> rankingData;
+
+  const OtherUserRankingPage({
+    super.key,
+    required this.rankingData,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        const Text(
-          "～ ユーザマイリスト ～",
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 10),
-        SizedBox(
-          height: 250,
-          child: FutureBuilder<List<Map<String, dynamic>>>(
-            future: _getMyCreatmypage(),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData) {
-                return const Center(child: CircularProgressIndicator());
-              }
+    final List items = rankingData["items"] ?? [];
 
-              final myItems = snapshot.data!;
-
-              if (myItems.isEmpty) {
-                return const Center(child: Text("作品がありません"));
-              }
-
-              return ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: myItems.length,
-                itemBuilder: (context, index) {
-                  return _buildCard(myItems[index]);
-                },
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// 自分の Creatmypage を取得
-  Future<List<Map<String, dynamic>>> _getMyCreatmypage() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return [];
-
-    final snapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .collection('Creatmypage')
-        .get();
-
-    return snapshot.docs.map((doc) {
-      final data = doc.data();
-      data['id'] = doc.id; // 必要ならドキュメントIDも追加
-      return data;
-    }).toList();
-  }
-
-  Widget _buildCard(Map<String, dynamic> item) {
-    return Container(
-      width: 220,
-      margin: const EdgeInsets.symmetric(horizontal: 10),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.black),
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(rankingData["title"] ?? "マイランキング"),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: item["images"] != null && item["images"].toString().isNotEmpty
-                ? Image.network(
-                    item["images"],
-                    height: 150,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                  )
-                : Container(
-                    height: 150,
-                    color: Colors.grey[300],
-                    child: const Center(child: Text("No Image")),
-                  ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            item["title"] ?? "",
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 5),
-          Text("作品数：${item["sakuhin"] ?? ""}"),
-        ],
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 作成者
+            Text(
+              "作成者：${rankingData["user"] ?? "不明"}",
+              style: const TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 16),
+
+            // ランキング一覧
+            Expanded(
+              child: ListView.builder(
+                itemCount: items.length,
+                itemBuilder: (context, index) {
+                  final item = items[index];
+
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    child: ListTile(
+                      leading: item["image"] != null
+                          ? Image.network(
+                              item["image"],
+                              width: 50,
+                              fit: BoxFit.cover,
+                            )
+                          : const Icon(Icons.movie),
+                      title: Text(item["title"] ?? ""),
+                      trailing: Text(
+                        "${item["rank"] ?? index + 1}位",
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
